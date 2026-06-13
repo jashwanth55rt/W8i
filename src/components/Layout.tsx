@@ -46,7 +46,7 @@ export default function Layout() {
     { name: "Profile", href: "/profile", type: 'profile', icon: UserIcon },
   ];
   
-  const hideHeaderRoutes = ['/my-matches', '/leaderboard', '/announcement', '/about', '/terms', '/tutorial', '/tournaments', '/my-profile', '/my-orders', '/my-statistics', '/my-rewards', '/wallet', '/add-coins', '/withdraw-coins'];
+  const hideHeaderRoutes = ['/my-matches', '/leaderboard', '/announcement', '/about', '/terms', '/tutorial', '/tournaments', '/my-profile', '/my-orders', '/my-statistics', '/my-rewards', '/wallet', '/add-coins', '/withdraw-coins', '/exclusive-games', '/refer'];
   const shouldHideHeader = hideHeaderRoutes.includes(pathname) || pathname.startsWith('/tournaments/');
 
   return (

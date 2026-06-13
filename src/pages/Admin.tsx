@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { format } from 'date-fns';
+import ImageUploader from '../components/ImageUploader';
 import { 
   Users, Gamepad2, Coins, FileText, Bell, Image as ImageIcon, 
   Settings, UserCheck, Shield, Menu, X, Trophy, Banknote, ShieldAlert, CheckCircle, Smartphone,
@@ -102,7 +103,7 @@ export default function Admin() {
             <Route path="notices" element={<AdminContentEditor docId="announcement" title="Manage Notices/Announcements" />} />
             <Route path="rules" element={<AdminContentEditor docId="terms" title="Manage App Rules & Terms" />} />
             <Route path="tutorials" element={<AdminContentEditor docId="tutorial" title="Manage App Tutorials" />} />
-            <Route path="settings" element={<AdminContentEditor docId="about" title="Manage About Us / Settings" />} />
+            <Route path="settings" element={<AdminSettings />} />
             <Route path="notifications" element={<AdminNotifications />} />
             <Route path="update" element={<AdminAppUpdate />} />
             <Route path="staff" element={<AdminStaff />} />
@@ -318,6 +319,8 @@ function AdminUsers() {
 function AdminAddGame() {
   const [title, setTitle] = useState('');
   const [image, setImage] = useState('');
+  const [gameType, setGameType] = useState<'play_with_ads_coins' | 'free_matches'>('play_with_ads_coins');
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [games, setGames] = useState<any[]>([]);
 
@@ -332,19 +335,54 @@ function AdminAddGame() {
     e.preventDefault();
     setLoading(true);
     try {
-      await addDoc(collection(db, 'games'), {
-        title,
-        image,
-        createdAt: serverTimestamp()
-      });
-      setTitle('');
-      setImage('');
-      alert('Game added successfully!');
+      if (editingId) {
+        await updateDoc(doc(db, 'games', editingId), {
+          title,
+          image,
+          gameType,
+          updatedAt: serverTimestamp()
+        });
+        alert('Game updated successfully!');
+      } else {
+        await addDoc(collection(db, 'games'), {
+          title,
+          image,
+          gameType,
+          createdAt: serverTimestamp()
+        });
+        alert('Game added successfully!');
+      }
+      
+      handleCancelEdit();
     } catch (error) {
       console.error(error);
-      alert('Failed to add game');
+      alert(editingId ? 'Failed to update game' : 'Failed to add game');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartEdit = (g: any) => {
+    setEditingId(g.id);
+    setTitle(g.title || '');
+    setImage(g.image || '');
+    setGameType(g.gameType || 'play_with_ads_coins');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setTitle('');
+    setImage('');
+    setGameType('play_with_ads_coins');
+  };
+
+  const handleToggleType = async (gameId: string, currentType: string) => {
+    try {
+      const nextType = currentType === 'free_matches' ? 'play_with_ads_coins' : 'free_matches';
+      await updateDoc(doc(db, 'games', gameId), { gameType: nextType });
+    } catch (error) {
+      console.error('Error toggling type:', error);
+      alert('Failed to update game type');
     }
   };
 
@@ -353,52 +391,124 @@ function AdminAddGame() {
       try {
         await deleteDoc(doc(db, 'games', id));
         alert('Game deleted successfully');
+        if (editingId === id) {
+          handleCancelEdit();
+        }
       } catch (error) {
         console.error(error);
-        alert('Failed to delete game (Missing Permissions).');
+        alert('Failed to delete game.');
       }
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fadeIn">
       <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <div>
           <h2 className="text-xl font-bold">Games</h2>
-          <p className="text-sm text-gray-500">Manage available games</p>
+          <p className="text-sm text-gray-500">Manage available games and features categorization</p>
         </div>
       </div>
       
       <div className="bg-white rounded-xl shadow p-6 border border-gray-100">
-        <h3 className="font-bold mb-4">Add New Game</h3>
-        <form onSubmit={handleAddGame} className="flex flex-col gap-4">
-          <div>
-            <label className="block font-semibold mb-2">Game Title</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-[#f2fafb] border border-gray-300 rounded-lg p-3" placeholder="e.g., PUBG Mobile" required />
+        <h3 className="font-bold mb-4">{editingId ? '✍️ Edit Game Details' : '➕ Add New Game'}</h3>
+        <form onSubmit={handleAddGame} className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block font-semibold mb-2">Game Title</label>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-[#f2fafb] border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500 font-medium" placeholder="e.g., PUBG Mobile" required />
+            </div>
+            <div>
+              <ImageUploader label="Game Poster Image" value={image} onChange={setImage} placeholder="https://..." />
+            </div>
           </div>
+
           <div>
-            <label className="block font-semibold mb-2">Image URL</label>
-            <input type="url" value={image} onChange={(e) => setImage(e.target.value)} className="w-full bg-[#f2fafb] border border-gray-300 rounded-lg p-3" placeholder="https://..." required />
+            <label className="block font-semibold mb-2">Select Game Placement Option</label>
+            <div className="grid grid-cols-2 gap-4">
+              <div 
+                onClick={() => setGameType('play_with_ads_coins')}
+                className={`p-4 rounded-xl border-2 cursor-pointer transition flex items-center gap-3 ${
+                  gameType === 'play_with_ads_coins' 
+                    ? 'border-yellow-500 bg-yellow-50/25' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center border-yellow-500">
+                  {gameType === 'play_with_ads_coins' && <div className="w-2 h-2 rounded-full bg-yellow-500" />}
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-gray-800">Play with Ads Coins</h4>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Show in Ads Coins section</p>
+                </div>
+              </div>
+
+              <div 
+                onClick={() => setGameType('free_matches')}
+                className={`p-4 rounded-xl border-2 cursor-pointer transition flex items-center gap-3 ${
+                  gameType === 'free_matches' 
+                    ? 'border-emerald-500 bg-emerald-50/25' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center border-emerald-500">
+                  {gameType === 'free_matches' && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-gray-800">Free Matches</h4>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Show in Free Match section</p>
+                </div>
+              </div>
+            </div>
           </div>
-          <button type="submit" disabled={loading} className="bg-[#2c3e50] text-white py-3 rounded-lg hover:bg-[#1e2a37] font-bold disabled:opacity-50">Add Game</button>
+
+          <div className="flex gap-4">
+            <button type="submit" disabled={loading} className="bg-[#2c3e50] text-white py-3 rounded-lg hover:bg-[#1e2a37] font-bold disabled:opacity-50 transition flex-1 shadow">
+              {editingId ? 'Save Changes' : 'Add Game'}
+            </button>
+            {editingId && (
+              <button type="button" onClick={handleCancelEdit} className="bg-gray-100 text-gray-700 py-3 px-6 rounded-lg hover:bg-gray-200 font-bold transition border shadow-sm">
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
       </div>
 
       <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b">
-          <h3 className="font-bold text-lg">Existing Games</h3>
+        <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+          <h3 className="font-bold text-md text-gray-800">Existing Games & Placement</h3>
+          <span className="text-xs text-gray-500 font-medium">Click badge to toggle section placement</span>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-          {games.map(g => (
-            <div key={g.id} className="border rounded-lg p-4 flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-3">
-                {g.image && <img src={g.image} alt={g.title} className="w-12 h-12 rounded object-cover" />}
-                <p className="font-bold">{g.title}</p>
+          {games.map(g => {
+            const currentType = g.gameType || 'play_with_ads_coins';
+            return (
+              <div key={g.id} className="border border-gray-100 rounded-xl p-3 flex items-center justify-between shadow-sm bg-white hover:shadow-md transition">
+                <div className="flex items-center gap-3">
+                  {g.image && <img src={g.image} alt={g.title} className="w-12 h-12 rounded-lg object-cover border" />}
+                  <div>
+                    <p className="font-bold text-sm text-gray-800">{g.title}</p>
+                    <button 
+                      onClick={() => handleToggleType(g.id, currentType)}
+                      className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full mt-1.5 cursor-pointer border hover:opacity-90 block text-left transition ${
+                        currentType === 'free_matches' 
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                          : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+                      }`}
+                    >
+                      {currentType === 'free_matches' ? '🏆 Free Matches' : '⚡ Ads Coins'}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handleStartEdit(g)} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full transition" title="Edit Game"><Edit className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(g.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition" title="Delete Game"><Trash2 className="w-4 h-4" /></button>
+                </div>
               </div>
-              <button onClick={() => handleDelete(g.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><Trash2 className="w-5 h-5" /></button>
-            </div>
-          ))}
-          {games.length === 0 && <p className="text-gray-500 col-span-full">No games added yet.</p>}
+            );
+          })}
+          {games.length === 0 && <p className="text-gray-500 col-span-full py-4 text-center">No games added yet.</p>}
         </div>
       </div>
     </div>
@@ -441,47 +551,39 @@ function AdminMatches() {
     setLoading(true);
     try {
       if (isEditing && editMatchId) {
-        const token = await auth.currentUser?.getIdToken();
-        const res = await fetch(`/api/admin/tournaments/${editMatchId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            title: newMatch.title,
-            date: newMatch.date,
-            entryFee: Number(newMatch.entryFee || 0),
-            prizePool: Number(newMatch.prizePool || 0),
-            type: newMatch.type,
-            map: newMatch.map,
-            image: newMatch.image,
-            game: newMatch.gameTitle,
-            status: 'upcoming',
-            slotsTotal: 100
-          })
+        await updateDoc(doc(db, 'tournaments', editMatchId), {
+          title: newMatch.title,
+          date: newMatch.date,
+          entryFee: Number(newMatch.entryFee || 0),
+          prizePool: Number(newMatch.prizePool || 0),
+          type: newMatch.type,
+          map: newMatch.map,
+          image: newMatch.image,
+          imageUrl: newMatch.image,
+          game: newMatch.gameTitle,
+          gameId: newMatch.gameId,
+          slotsTotal: 100,
+          updatedAt: serverTimestamp()
         });
-        if (!res.ok) throw new Error('Failed to update match');
         alert('Match updated successfully!');
       } else {
-        const token = await auth.currentUser?.getIdToken();
-        const res = await fetch(`/api/admin/tournaments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            title: newMatch.title,
-            date: newMatch.date,
-            entryFee: Number(newMatch.entryFee || 0),
-            prizePool: Number(newMatch.prizePool || 0),
-            type: newMatch.type,
-            map: newMatch.map,
-            image: newMatch.image,
-            gameId: newMatch.gameId,
-            game: newMatch.gameTitle,
-            status: 'upcoming',
-            slotsTotal: 100,
-            slotsFilled: 0,
-            participants: []
-          })
+        await addDoc(collection(db, 'tournaments'), {
+          title: newMatch.title,
+          date: newMatch.date,
+          entryFee: Number(newMatch.entryFee || 0),
+          prizePool: Number(newMatch.prizePool || 0),
+          type: newMatch.type,
+          map: newMatch.map,
+          image: newMatch.image,
+          imageUrl: newMatch.image,
+          gameId: newMatch.gameId,
+          game: newMatch.gameTitle,
+          status: 'upcoming',
+          slotsTotal: 100,
+          slotsFilled: 0,
+          participants: [],
+          createdAt: serverTimestamp()
         });
-        if (!res.ok) throw new Error('Failed to create match');
         alert('Match added successfully!');
       }
       setShowAddModal(false);
@@ -499,12 +601,8 @@ function AdminMatches() {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this match?')) {
       try {
-        const token = await auth.currentUser?.getIdToken();
-        const res = await fetch(`/api/admin/tournaments/${id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error('Failed to delete');
+        await deleteDoc(doc(db, 'tournaments', id));
+        alert('Match deleted successfully');
       } catch (error) {
         console.error(error);
         alert('Failed to delete match');
@@ -515,7 +613,7 @@ function AdminMatches() {
   const openEditModal = (t: any) => {
     setIsEditing(true);
     setEditMatchId(t.id);
-    const gameId = games.find(g => g.title === t.game)?.id || '';
+    const gameId = games.find(g => g.title === t.game || g.id === t.gameId)?.id || '';
     setNewMatch({
       title: t.title || '',
       date: t.date || '',
@@ -523,7 +621,7 @@ function AdminMatches() {
       prizePool: t.prizePool?.toString() || '0',
       type: t.type || 'Squad',
       map: t.map || 'Erangel',
-      image: t.image || '',
+      image: t.imageUrl || t.image || '',
       gameId: gameId,
       gameTitle: t.game || ''
     });
@@ -535,16 +633,10 @@ function AdminMatches() {
     if (!roomModalInfo) return;
     setLoading(true);
     try {
-      const token = await auth.currentUser?.getIdToken();
-      const res = await fetch(`/api/admin/tournaments/${roomModalInfo.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          roomId: roomModalInfo.roomId,
-          roomPassword: roomModalInfo.roomPassword
-        })
+      await updateDoc(doc(db, 'tournaments', roomModalInfo.id), {
+        roomId: roomModalInfo.roomId,
+        roomPassword: roomModalInfo.roomPassword
       });
-      if (!res.ok) throw new Error('Failed to update room');
       alert('Room updated!');
       setRoomModalInfo(null);
     } catch (err) {
@@ -642,8 +734,12 @@ function AdminMatches() {
                 <input type="text" required value={newMatch.date} onChange={e => setNewMatch({...newMatch, date: e.target.value})} className="w-full border p-2 rounded" placeholder="e.g. 25 Aug, 8:00 PM" />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-1">Image URL</label>
-                <input type="url" value={newMatch.image} onChange={e => setNewMatch({...newMatch, image: e.target.value})} className="w-full border p-2 rounded" placeholder="https://..." />
+                <ImageUploader 
+                  label="Match Card Image" 
+                  value={newMatch.image} 
+                  onChange={(url) => setNewMatch({...newMatch, image: url})} 
+                  placeholder="https://..." 
+                />
               </div>
               <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 mt-4">
                 {loading ? 'Saving...' : isEditing ? 'Save Changes' : 'Create Match'}
@@ -953,6 +1049,7 @@ function AdminSliders() {
   
   const [formData, setFormData] = useState({
     title: '',
+    image: '',
     gradient: 'from-blue-900/40 via-blue-800/30 to-indigo-900/40',
     iconType: 'Megaphone',
     spriteSeed: 'ninja',
@@ -1004,13 +1101,14 @@ function AdminSliders() {
   const editSlider = (s: any) => {
     setIsEditing(s.id);
     setFormData({
-      title: s.title,
-      gradient: s.gradient,
-      iconType: s.iconType,
-      spriteSeed: s.spriteSeed,
+      title: s.title || '',
+      image: s.image || '',
+      gradient: s.gradient || 'from-blue-900/40 via-blue-800/30 to-indigo-900/40',
+      iconType: s.iconType || 'Megaphone',
+      spriteSeed: s.spriteSeed || 'ninja',
       link: s.link || '',
-      status: s.status,
-      order: s.order
+      status: s.status || 'active',
+      order: s.order || 0
     });
     setShowModal(true);
   };
@@ -1019,6 +1117,7 @@ function AdminSliders() {
     setIsEditing(null);
     setFormData({
       title: '',
+      image: '',
       gradient: 'from-blue-900/40 via-blue-800/30 to-indigo-900/40',
       iconType: 'Megaphone',
       spriteSeed: 'ninja',
@@ -1046,19 +1145,25 @@ function AdminSliders() {
       <div className="grid grid-cols-1 gap-4">
         {sliders.map(s => (
           <div key={s.id} className="bg-white p-4 rounded-xl shadow-sm border flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className={`w-20 h-16 rounded-md bg-gradient-to-r ${s.gradient} flex items-center justify-center relative overflow-hidden`}>
-                <ImageIcon className="w-6 h-6 text-white absolute z-10" />
-                <div 
-                   className="absolute left-[-5px] bottom-0 w-1/2 h-full bg-contain bg-no-repeat bg-bottom opacity-50 pointer-events-none" 
-                   style={{ backgroundImage: `url('https://api.dicebear.com/7.x/adventurer/svg?seed=${s.spriteSeed}&flip=true')` }}
-                 />
+            <div className="flex items-center gap-4 cursor-pointer" onClick={() => editSlider(s)}>
+              <div className="w-20 h-16 rounded-md bg-gray-100 flex items-center justify-center overflow-hidden border shrink-0">
+                {s.image ? (
+                  <img src={s.image} alt={s.title || "Banner"} className="w-full h-full object-cover" />
+                ) : (
+                  <div className={`w-full h-full bg-gradient-to-r ${s.gradient || 'from-[#0F0B1E] via-[#2A1657] to-[#0A0714]'} flex items-center justify-center relative overflow-hidden`}>
+                    <ImageIcon className="w-5 h-5 text-white absolute z-10" />
+                    <div 
+                       className="absolute left-[-5px] bottom-0 w-1/2 h-full bg-contain bg-no-repeat bg-bottom opacity-50 pointer-events-none" 
+                       style={{ backgroundImage: `url('https://api.dicebear.com/7.x/adventurer/svg?seed=${s.spriteSeed}&flip=true')` }}
+                     />
+                  </div>
+                )}
               </div>
               <div>
-                <h3 className="font-bold whitespace-pre-wrap text-sm" dangerouslySetInnerHTML={{ __html: s.title }} />
+                <h3 className="font-bold whitespace-pre-wrap text-sm" dangerouslySetInnerHTML={{ __html: s.title || s.image || 'Untitled Banner' }} />
                 <div className="flex gap-2 text-xs mt-1">
                   <span className={`px-2 py-0.5 rounded-full ${s.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {s.status.toUpperCase()}
+                    {(s.status || 'ACTIVE').toUpperCase()}
                   </span>
                   <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Order: {s.order}</span>
                 </div>
@@ -1082,8 +1187,16 @@ function AdminSliders() {
             </div>
             <form onSubmit={handleSave} className="p-4 space-y-4">
               <div>
-                <label className="block text-sm font-semibold mb-1">Title (HTML allowed block)</label>
-                <textarea required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full border p-2 rounded" rows={3} placeholder="WIN<br/>BIG<br/>PRIZES" />
+                <ImageUploader 
+                  label="Slider Banner Image (Optional - If specified, will be used as the banner background instead of gradient)" 
+                  value={formData.image} 
+                  onChange={(url) => setFormData({...formData, image: url})} 
+                  placeholder="https://example.com/slide1.jpg" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Title (HTML allowed block - for gradient banners only)</label>
+                <textarea value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full border p-2 rounded" rows={3} placeholder="WIN<br/>BIG<br/>PRIZES" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1323,44 +1436,180 @@ function AdminNotifications() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
-  const handleSend = async (e: React.FormEvent) => {
+  useEffect(() => {
+    const q = query(collection(db, 'notifications'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const list: any[] = [];
+      snapshot.forEach((doc) => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      setNotifications(list);
+    }, (error) => {
+      console.error("Error fetching notifications:", error);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await addDoc(collection(db, 'notifications'), {
-        title,
-        body,
-        readBy: [],
-        createdAt: serverTimestamp()
-      });
-      alert('Notification sent to all users!');
-      setTitle('');
-      setBody('');
+      if (editingId) {
+        await updateDoc(doc(db, 'notifications', editingId), {
+          title,
+          body,
+          updatedAt: serverTimestamp()
+        });
+        alert('Notification updated successfully!');
+        setEditingId(null);
+        setTitle('');
+        setBody('');
+      } else {
+        await addDoc(collection(db, 'notifications'), {
+          title,
+          body,
+          readBy: [],
+          createdAt: serverTimestamp()
+        });
+        alert('Notification sent to all users!');
+        setTitle('');
+        setBody('');
+      }
     } catch (error) {
       console.error(error);
-      alert('Failed to send notification');
+      alert('Failed to save notification');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleEdit = (n: any) => {
+    setEditingId(n.id);
+    setTitle(n.title || '');
+    setBody(n.body || '');
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this notification?')) {
+      try {
+        await deleteDoc(doc(db, 'notifications', id));
+        alert('Notification deleted successfully!');
+        if (editingId === id) {
+          setEditingId(null);
+          setTitle('');
+          setBody('');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Failed to delete notification');
+      }
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setTitle('');
+    setBody('');
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow p-6 border border-gray-100 max-w-2xl">
-       <h2 className="text-xl font-bold mb-4">Send Push Notification</h2>
-       <form onSubmit={handleSend} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold mb-1">Title</label>
-            <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} className="w-full border p-3 rounded-lg flex-1 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Server Maintenance" />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1">Message</label>
-            <textarea required value={body} onChange={(e) => setBody(e.target.value)} rows={4} className="w-full border p-3 rounded-lg flex-1 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Message content..."></textarea>
-          </div>
-          <button type="submit" disabled={loading} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-            {loading ? 'Sending...' : 'Send Broadcast Notification'}
-          </button>
-       </form>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="lg:col-span-5 bg-white rounded-xl shadow p-6 border border-gray-100">
+           <h2 className="text-xl font-bold mb-4">{editingId ? 'Edit Notification' : 'Send Push Notification'}</h2>
+           <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1">Title</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={title} 
+                  onChange={(e) => setTitle(e.target.value)} 
+                  className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                  placeholder="e.g. Server Maintenance" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Message</label>
+                <textarea 
+                  required 
+                  value={body} 
+                  onChange={(e) => setBody(e.target.value)} 
+                  rows={4} 
+                  className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" 
+                  placeholder="Message content..."
+                />
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  type="submit" 
+                  disabled={loading} 
+                  className="flex-grow bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition"
+                >
+                  {loading ? 'Saving...' : editingId ? 'Update Notification' : 'Send Broadcast'}
+                </button>
+                {editingId && (
+                  <button 
+                    type="button" 
+                    onClick={handleCancelEdit}
+                    className="bg-gray-100 text-gray-700 font-bold py-3 px-4 rounded-lg hover:bg-gray-200 transition"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+           </form>
+        </div>
+
+        <div className="lg:col-span-7 bg-white rounded-xl shadow p-6 border border-gray-100">
+          <h2 className="text-xl font-bold mb-4">Sent Notifications Logs</h2>
+          {notifications.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <p className="font-medium">No sent notifications found.</p>
+              <p className="text-xs">Create your first broadcast notification using the form.</p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+              {notifications.map((n) => (
+                <div key={n.id} className="p-4 border border-gray-100 rounded-xl bg-gray-50/50 hover:bg-gray-50 transition flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-gray-900 text-sm leading-tight">{n.title}</span>
+                      {n.createdAt && (
+                        <span className="text-[10px] text-gray-400 font-mono">
+                          {format(n.createdAt.toDate ? n.createdAt.toDate() : new Date(n.createdAt), 'dd MMM yyyy, hh:mm a')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 leading-normal whitespace-pre-wrap">{n.body}</p>
+                    <div className="text-[10px] text-gray-400 flex items-center gap-1.5 mt-1">
+                      <span>Seen by: <strong>{n.readBy?.length || 0}</strong> users</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2 shrink-0 md:self-start">
+                    <button 
+                      onClick={() => handleEdit(n)}
+                      className="text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold px-2.5 py-1.5 rounded-lg transition"
+                    >
+                      Edit
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(n.id)}
+                      className="text-xs bg-red-50 text-red-600 hover:bg-red-100 font-bold px-2.5 py-1.5 rounded-lg transition"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1506,8 +1755,125 @@ function AdminStaff() {
                alert('Failed to add admin');
              }
            }} className="bg-blue-600 text-white font-bold px-6 py-3 rounded-lg hover:bg-blue-700">Add Admin</button>
-         </div>
-       </div>
+          </div>
+        </div>
+     </div>
+  );
+}
+
+function AdminSettings() {
+  const [activeOption, setActiveOption] = useState<'all' | 'play_with_ads_coins' | 'free_matches'>('all');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const docRef = doc(db, 'app_content', 'game_mode');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setActiveOption(docSnap.data().activeOption || 'all');
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleSaveMode = async (opt: 'all' | 'play_with_ads_coins' | 'free_matches') => {
+    setSaving(true);
+    try {
+      const { setDoc } = await import('firebase/firestore');
+      await setDoc(doc(db, 'app_content', 'game_mode'), {
+        activeOption: opt,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      setActiveOption(opt);
+      alert('Selected option is now active and direct on client panel!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save settings. (Missing Permissions?)');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-4xl pb-10">
+      <div className="bg-white rounded-xl shadow p-6 border border-gray-100 font-sans">
+         <h2 className="text-xl font-bold text-[#2c3e50]">Active Game Option Setting</h2>
+         <p className="text-sm text-gray-500 mt-1">
+           Choose which game/match option users can play. Selecting an option will directly display it in the user's "EXCLUSIVE" section and hide other features.
+         </p>
+
+         {loading ? (
+           <div className="py-8 text-center text-gray-500">Loading configurations...</div>
+         ) : (
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+             {/* Option 1: Both Options */}
+             <div 
+               onClick={() => !saving && handleSaveMode('all')}
+               className={`p-5 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between h-40 ${
+                 activeOption === 'all' 
+                   ? 'border-blue-500 bg-blue-50/50' 
+                   : 'border-gray-200 hover:border-gray-300 bg-white'
+               }`}
+             >
+               <div>
+                 <span className="text-xs font-bold px-2 py-1 bg-gray-100 text-gray-700 rounded-full">Standard</span>
+                 <h4 className="font-bold text-lg mt-2 text-gray-900">Show Both Options</h4>
+                 <p className="text-xs text-gray-500 mt-1">Users see "Play with Ads Coins" AND "Free Matches" in their panel.</p>
+               </div>
+               <div className="text-right">
+                 {activeOption === 'all' && <span className="text-sm text-blue-600 font-extrabold">Active ✓</span>}
+               </div>
+             </div>
+
+             {/* Option 2: Play with Ads Coins Only */}
+             <div 
+               onClick={() => !saving && handleSaveMode('play_with_ads_coins')}
+               className={`p-5 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between h-40 ${
+                 activeOption === 'play_with_ads_coins' 
+                   ? 'border-yellow-500 bg-yellow-50/30' 
+                   : 'border-gray-200 hover:border-gray-300 bg-white'
+               }`}
+             >
+               <div>
+                 <span className="text-xs font-bold px-2 py-1 bg-yellow-105 text-yellow-850 rounded-full">Monetized</span>
+                 <h4 className="font-bold text-lg mt-2 text-gray-900">Play with Ads Coins Only</h4>
+                 <p className="text-xs text-gray-500 mt-1">Users see ONLY "Play with Ads Coins". All other features are hidden.</p>
+               </div>
+               <div className="text-right">
+                 {activeOption === 'play_with_ads_coins' && <span className="text-sm text-yellow-600 font-extrabold">Active ✓</span>}
+               </div>
+             </div>
+
+             {/* Option 3: Free Matches Only */}
+             <div 
+               onClick={() => !saving && handleSaveMode('free_matches')}
+               className={`p-5 rounded-xl border-2 cursor-pointer transition flex flex-col justify-between h-40 ${
+                 activeOption === 'free_matches' 
+                   ? 'border-emerald-500 bg-emerald-50/30' 
+                   : 'border-gray-200 hover:border-gray-300 bg-white'
+               }`}
+             >
+               <div>
+                 <span className="text-xs font-bold px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full">Free Play</span>
+                 <h4 className="font-bold text-lg mt-2 text-gray-900">Free Matches Only</h4>
+                 <p className="text-xs text-gray-500 mt-1">Users see ONLY "Free Matches". All other features are hidden.</p>
+               </div>
+               <div className="text-right">
+                 {activeOption === 'free_matches' && <span className="text-sm text-emerald-600 font-extrabold">Active ✓</span>}
+               </div>
+             </div>
+           </div>
+         )}
+      </div>
+
+      <AdminContentEditor docId="about" title="Manage About Us / App Settings" />
     </div>
   );
 }

@@ -30,7 +30,7 @@ const LeaderboardIcon = ({ className, isActive }: { className?: string; isActive
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const { dbUser } = useAuth();
+  const { dbUser, user } = useAuth();
 
   const showComingSoon = () => {
     toast('Support & Global Features loaded!', {
@@ -59,7 +59,7 @@ export default function Layout() {
             <div className="flex items-center gap-2">
               <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-[#1E40AF] to-[#0A0515] flex items-center justify-center overflow-hidden border-[2px] border-white/90 shadow-lg relative">
                 <img 
-                  src={`https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${dbUser?.username || 'Reshma454145'}&backgroundColor=0747E8`} 
+                  src={`https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${dbUser?.username || user?.displayName || user?.email?.split('@')[0] || 'Reshma454145'}&backgroundColor=0747E8`} 
                   alt="avatar" 
                   className="w-[85%] h-[85%] object-cover" 
                 />
@@ -73,7 +73,7 @@ export default function Layout() {
                 Welcome Back,
               </span>
               <span className="text-[14px] font-[900] text-white italic uppercase tracking-wider leading-tight shadow-sm">
-                {dbUser?.username || dbUser?.displayName || 'ZEN BATTLE'}
+                {dbUser?.username || dbUser?.displayName || user?.displayName || user?.email?.split('@')[0] || 'ZEN BATTLE'}
               </span>
             </div>
 

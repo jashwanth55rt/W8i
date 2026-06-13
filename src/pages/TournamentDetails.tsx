@@ -412,10 +412,10 @@ export default function TournamentDetails() {
         {/* Image placeholder with bottom nav */}
         <div className="relative bg-gray-200 h-[200px] w-full">
           <img 
-            src={tournament.imageUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${tournament.id || 'arena'}&flip=true`}
+            src={tournament.imageUrl || tournament.image || `https://api.dicebear.com/7.x/adventurer/svg?seed=${tournament.id || 'arena'}&flip=true`}
             alt="Match Banner" 
             className="w-full h-full object-cover"
-            style={{ backgroundColor: tournament.imageUrl ? 'transparent' : '#2f1b69' }} 
+            style={{ backgroundColor: (tournament.imageUrl || tournament.image) ? 'transparent' : '#2f1b69' }} 
           />
           <nav className="absolute bottom-0 left-0 right-0 bg-[#161c2d]/90 backdrop-blur flex justify-center text-white text-[13px] font-semibold px-6 pt-3 pb-2">
             <span className="border-b-2 border-white pb-1 px-1">

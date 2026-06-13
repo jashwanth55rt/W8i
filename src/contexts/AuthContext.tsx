@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 
 interface AuthContextType {
@@ -19,15 +19,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubUserDoc: (() => void) | null = null;
+
+    const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
+
+      // Unsubscribe from any previous user document snapshot listener
+      if (unsubUserDoc) {
+        unsubUserDoc();
+        unsubUserDoc = null;
+      }
+
       if (firebaseUser) {
-        // Fetch user doc
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          setDbUser({ id: userDoc.id, ...userDoc.data() });
-        }
-        
+        // Real-time synchronization of current user document
+        unsubUserDoc = onSnapshot(doc(db, 'users', firebaseUser.uid), (userDoc) => {
+          if (userDoc.exists()) {
+            setDbUser({ id: userDoc.id, ...userDoc.data() });
+          } else {
+            setDbUser(null);
+          }
+          setLoading(false);
+        }, (error) => {
+          console.error("Error listening to user document:", error);
+          setLoading(false);
+        });
+
         // Fetch admin doc to check role
         const adminDoc = await getDoc(doc(db, 'admins', firebaseUser.uid));
         if (adminDoc.exists() || firebaseUser.email === 'malleshr20944@gmail.com') {
@@ -38,11 +54,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         setDbUser(null);
         setIsAdmin(false);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsub();
+    return () => {
+      unsubAuth();
+      if (unsubUserDoc) {
+        unsubUserDoc();
+      }
+    };
   }, []);
 
   return (

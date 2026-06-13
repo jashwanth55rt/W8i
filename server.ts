@@ -209,6 +209,34 @@ async function startServer() {
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // Admin Games Endpoints
+  app.post("/api/admin/games", verifyAdmin, async (req, res) => {
+    try {
+      const docRef = await admin.firestore().collection('games').add({
+        ...req.body,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      res.json({ success: true, id: docRef.id });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.put("/api/admin/games/:id", verifyAdmin, async (req, res) => {
+    try {
+      await admin.firestore().collection('games').doc(req.params.id).update({
+        ...req.body,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  app.delete("/api/admin/games/:id", verifyAdmin, async (req, res) => {
+    try {
+      await admin.firestore().collection('games').doc(req.params.id).delete();
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

@@ -23,6 +23,7 @@ import MyStatistics from './pages/MyStatistics';
 import MyRewards from './pages/MyRewards';
 import AddCoins from './pages/AddCoins';
 import WithdrawCoins from './pages/WithdrawCoins';
+import ExclusiveGames from './pages/ExclusiveGames';
 
 const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
   const { user, isAdmin, loading } = useAuth();
@@ -55,6 +56,7 @@ function AppRoutes() {
         <Route index element={<Home />} />
         <Route path="tournaments" element={<Tournaments />} />
         <Route path="tournaments/:id" element={<TournamentDetails />} />
+        <Route path="exclusive-games" element={<ExclusiveGames />} />
         <Route path="wallet" element={<Wallet />} />
         <Route path="add-coins" element={<AddCoins />} />
         <Route path="withdraw-coins" element={<WithdrawCoins />} />

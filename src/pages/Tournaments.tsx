@@ -96,10 +96,10 @@ export default function Tournaments() {
             <div key={tournament.id} className="w-full rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.5)] bg-[#1C1C28] border border-white/5 mx-auto overflow-hidden group hover:border-[#FF4A4A]/50 transition-colors duration-300">
               <div className="w-full h-[140px] flex justify-center items-center bg-[#0B0B0F] text-gray-600 font-semibold text-lg select-none relative overflow-hidden">
                  <img 
-                   src={tournament.imageUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${tournament.id || 'arena'}&flip=true`}
+                   src={tournament.imageUrl || tournament.image || `https://api.dicebear.com/7.x/adventurer/svg?seed=${tournament.id || 'arena'}&flip=true`}
                    alt="Match Banner" 
                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80 group-hover:opacity-100" 
-                   style={{ backgroundColor: tournament.imageUrl ? 'transparent' : '#1e1147' }} 
+                   style={{ backgroundColor: (tournament.imageUrl || tournament.image) ? 'transparent' : '#1e1147' }} 
                  />
                  <div className="absolute inset-0 bg-gradient-to-t from-[#0B1221] to-transparent"></div>
                  <div className="absolute top-2 left-2 bg-black/60 backdrop-blur border border-white/10 px-2 py-1 rounded text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">

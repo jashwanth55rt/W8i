@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { 
   Megaphone,
@@ -12,7 +12,11 @@ import {
   Instagram,
   Send,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Trophy,
+  Gamepad2,
+  PlayCircle,
+  Crosshair
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { toast } from 'react-hot-toast';
@@ -23,6 +27,18 @@ export default function Home() {
   const [slides, setSlides] = useState<any[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [activeGameMode, setActiveGameMode] = useState<string>('all');
+
+  // Fetch active game mode config
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'app_content', 'game_mode'), (snap) => {
+      if (snap.exists()) {
+        const mode = snap.data().activeOption || 'all';
+        setActiveGameMode(mode);
+      }
+    }, err => console.error(err));
+    return () => unsub();
+  }, []);
 
   // Fetch games
   useEffect(() => {
@@ -161,7 +177,39 @@ export default function Home() {
                       className="w-full h-full object-fill m-0 p-0 absolute inset-0"
                     />
                   ) : (
-                    <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient || 'from-[#0F0B1E] via-[#2A1657] to-[#0A0714]'}`} />
+                    <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient || 'from-[#0F0B1E] via-[#2A1657] to-[#0A0714]'} flex items-center justify-between px-6 sm:px-10 h-full w-full relative overflow-hidden`}>
+                      {/* Left Title and text content */}
+                      <div className="z-10 flex flex-col justify-center max-w-[60%]">
+                        <h3 className="font-sans font-black text-sm sm:text-base text-white uppercase leading-tight tracking-wider whitespace-pre-wrap text-left drop-shadow-md" dangerouslySetInnerHTML={{ __html: slide.title || '' }} />
+                      </div>
+                      
+                      {/* Character Sprite illustration from Dicebear on the right */}
+                      {slide.spriteSeed && (
+                        <div 
+                          className="absolute right-2 bottom-0 w-[35%] h-[92%] bg-contain bg-no-repeat bg-bottom opacity-85 pointer-events-none z-10" 
+                          style={{ backgroundImage: `url('https://api.dicebear.com/7.x/adventurer/svg?seed=${slide.spriteSeed}&flip=true')` }}
+                        />
+                      )}
+                      
+                      {/* Large watermarked icon behind */}
+                      <div className="absolute right-[25%] top-[10%] opacity-15 pointer-events-none">
+                        {(() => {
+                          const IconComp = (() => {
+                            switch (slide.iconType) {
+                              case 'Trophy': return Trophy;
+                              case 'Gamepad2': return Gamepad2;
+                              case 'PlayCircle': return PlayCircle;
+                              case 'Instagram': return Instagram;
+                              case 'CheckCircle2': return CheckCircle2;
+                              case 'Crosshair': return Crosshair;
+                              case 'Megaphone': return Megaphone;
+                              default: return Megaphone;
+                            }
+                          })();
+                          return <IconComp className="w-16 h-16 text-white" />;
+                        })()}
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}
@@ -214,134 +262,108 @@ export default function Home() {
             <span className="bg-red-600 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide animate-pulse">LIVE</span>
           </h2>
         </div>
-        <p className="text-zinc-500 text-[11px] font-medium leading-none mb-1 px-0.5">Big Winnings For All</p>
+        <p className="text-zinc-500 text-[11px] font-medium leading-none mb-1.5 px-0.5">Tap a category to go inside and view games</p>
 
-        {/* 2 Column matches layout matching the screenshot */}
-        <div className="grid grid-cols-2 gap-3.5 px-0.5">
+        {/* Dynamic columns matches layout based on game feature selection */}
+        <div className={`grid gap-3.5 px-0.5 ${
+          activeGameMode === 'all' ? 'grid-cols-2' : 'grid-cols-1'
+        }`}>
           
           {/* CARD 1: Play with Ads Coins */}
-          <div 
-            onClick={() => handlePlayAction("Play with Ads Coins")}
-            className="rounded-[18px] overflow-hidden bg-gradient-to-br from-[#120B24] to-[#1D0C3A] border border-white/5 shadow-2xl flex flex-col relative aspect-[4/5] cursor-pointer group active:scale-[0.98] transition-all"
-          >
-            {/* Top Indicator badge */}
-            <div className="absolute top-2.5 left-2.5 z-20">
-              <div className="bg-[#0747E8] text-[9.5px] font-black text-white px-2 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-[0_2px_5px_rgba(0,0,0,0.5)]">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                <span>FairPlay : ON</span>
+          {(activeGameMode === 'all' || activeGameMode === 'play_with_ads_coins') && (
+            <div 
+              id="exclusive-ads-coins"
+              onClick={() => navigate('/exclusive-games?type=play_with_ads_coins')}
+              className="rounded-[18px] overflow-hidden bg-gradient-to-br from-[#120B24] to-[#1D0C3A] border border-white/5 hover:border-yellow-500/30 flex flex-col relative aspect-[4/5] cursor-pointer group active:scale-[0.98] transition-all duration-300 shadow-2xl"
+            >
+              {/* Top Indicator badge */}
+              <div className="absolute top-2.5 left-2.5 z-20">
+                <div className="bg-[#0747E8] text-[9.5px] font-black text-white px-2 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-[0_2px_5px_rgba(0,0,0,0.5)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  <span>FairPlay : ON</span>
+                </div>
               </div>
-            </div>
 
-            {/* Center graphical area */}
-            <div className="flex-1 relative flex flex-col items-center justify-center p-3 overflow-hidden bg-[#0A0615]">
-              {/* Image from user's upload or fallback html */}
-              <div className="absolute inset-0 z-0">
-                <div className="w-full h-full bg-gradient-to-b from-[#140b2e] to-[#0A0615] flex flex-col items-center justify-center pt-5">
-                  <div className="relative flex flex-col items-center">
-                    <h4 className="text-[14px] font-display font-black text-white italic drop-shadow-md z-10 leading-tight">Play with</h4>
-                    <div className="bg-gradient-to-r from-yellow-300 via-yellow-500 to-orange-500 text-transparent bg-clip-text font-black text-[18px] italic transform -skew-x-12 drop-shadow-lg scale-110 mb-1 leading-none uppercase">Ads Coins</div>
-                    
-                    {/* Big Coin Logo inside */}
-                    <div className="relative mt-2">
-                       <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-[0_0_20px_rgba(234,179,8,0.5)] border-[2px] border-yellow-200/50">
-                          <span className="text-2xl font-black text-yellow-900 drop-shadow-sm">⚡</span>
-                       </div>
-                       <div className="absolute -bottom-2 -left-4 w-7 h-7 bg-yellow-500 rounded-full border border-yellow-300 flex items-center justify-center shadow-lg transform -rotate-12 text-[10px]">🪙</div>
-                       <div className="absolute top-0 -right-3 w-5 h-5 bg-yellow-400 rounded-full border border-yellow-200 flex items-center justify-center shadow-md transform rotate-12 text-[8px]">🪙</div>
+              {/* Center graphical area */}
+              <div className="flex-1 relative flex flex-col items-center justify-center p-3 overflow-hidden bg-[#0A0615]">
+                {/* Image from user's upload or fallback html */}
+                <div className="absolute inset-0 z-0">
+                  <div className="w-full h-full bg-gradient-to-b from-[#140b2e] to-[#0A0615] flex flex-col items-center justify-center pt-5">
+                    <div className="relative flex flex-col items-center">
+                      <h4 className="text-[14px] font-display font-black text-white italic drop-shadow-md z-10 leading-tight">Play with</h4>
+                      <div className="bg-gradient-to-r from-yellow-300 via-yellow-500 to-orange-500 text-transparent bg-clip-text font-black text-[18px] italic transform -skew-x-12 drop-shadow-lg scale-110 mb-1 leading-none uppercase">Ads Coins</div>
+                      
+                      {/* Big Coin Logo inside */}
+                      <div className="relative mt-2">
+                         <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-[0_0_20px_rgba(234,179,8,0.5)] border-[2px] border-yellow-200/50">
+                            <span className="text-2xl font-black text-yellow-900 drop-shadow-sm">⚡</span>
+                         </div>
+                         <div className="absolute -bottom-2 -left-4 w-7 h-7 bg-yellow-500 rounded-full border border-yellow-300 flex items-center justify-center shadow-lg transform -rotate-12 text-[10px]">🪙</div>
+                         <div className="absolute top-0 -right-3 w-5 h-5 bg-yellow-400 rounded-full border border-yellow-200 flex items-center justify-center shadow-md transform rotate-12 text-[8px]">🪙</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Bottom Play action pill */}
-            <div className="absolute bottom-2 right-2 z-10">
-              <div className="bg-white text-black px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1 shadow-lg pointer-events-none">
-                <span>PLAY</span>
-                <span className="text-[8px]">▶</span>
+              {/* Bottom Play action pill */}
+              <div className="absolute bottom-2 right-2 z-10">
+                <div className="bg-white text-black px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1 shadow-lg pointer-events-none group-hover:scale-105 transition-transform">
+                  <span>ENTER</span>
+                  <span className="text-[8px]">▶</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* CARD 2: AREXA (A New Way To Win) */}
-          <div 
-            onClick={() => handlePlayAction("AREXA")}
-            className="rounded-[18px] overflow-hidden bg-gradient-to-br from-[#120B24] to-[#1D0C3A] border border-white/5 shadow-2xl flex flex-col relative aspect-[4/5] cursor-pointer group active:scale-[0.98] transition-all"
-          >
-            {/* Top Indicator badge */}
-            <div className="absolute top-2.5 left-2.5 z-20">
-              <div className="bg-[#0747E8] text-[9.5px] font-black text-white px-2 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-[0_2px_5px_rgba(0,0,0,0.5)]">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                <span>FairPlay : ON</span>
+          {/* CARD 2: Free Matches */}
+          {(activeGameMode === 'all' || activeGameMode === 'free_matches') && (
+            <div 
+              id="exclusive-free-matches"
+              onClick={() => navigate('/exclusive-games?type=free_matches')}
+              className="rounded-[18px] overflow-hidden bg-gradient-to-br from-[#120B24] to-[#1D0C3A] border border-white/5 hover:border-emerald-500/30 flex flex-col relative aspect-[4/5] cursor-pointer group active:scale-[0.98] transition-all duration-300 shadow-2xl"
+            >
+              {/* Top Indicator badge */}
+              <div className="absolute top-2.5 left-2.5 z-20">
+                <div className="bg-[#10B981] text-[9.5px] font-black text-white px-2 py-0.5 rounded-full flex items-center gap-1 border border-white/10 shadow-[0_2px_5px_rgba(0,0,0,0.5)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-300 animate-pulse"></span>
+                  <span>Free Matches</span>
+                </div>
+              </div>
+
+              {/* Center graphical area */}
+              <div className="flex-1 relative flex flex-col items-center justify-center p-3 overflow-hidden bg-[#0A0615]">
+                <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#061E14] to-[#0A0615] flex flex-col items-center justify-center pt-2">
+                   <h4 className="text-[13px] font-black text-emerald-400 uppercase tracking-widest opacity-90">Free Matches</h4>
+                   
+                   <div className="relative mt-2 flex items-center justify-center w-[75px] h-[75px]">
+                      <div className="absolute inset-0 bg-gradient-to-b from-[#10B981] to-[#042F1A] rounded-full border-[3px] border-[#34D399]/70 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+                      <span className="text-white text-[34px] font-bold drop-shadow-md z-10 mb-1 relative">🏆</span>
+                   </div>
+                   
+                   <div className="mt-2 text-center flex flex-col items-center">
+                      <span className="text-[8px] font-black text-[#34D399] tracking-[0.2em] mb-0.5 leading-none">ZERO FEES</span>
+                      <span className="text-[11px] font-black text-white px-2 mt-0.5 max-w-[120px] truncate leading-tight">Play Free, Win Real!</span>
+                   </div>
+                </div>
+              </div>
+
+              {/* Bottom Play action pill */}
+              <div className="absolute bottom-2 right-2 z-10">
+                <div className="bg-[#10B981] text-white px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1 shadow-lg pointer-events-none group-hover:scale-105 transition-transform">
+                  <span>ENTER</span>
+                  <span className="text-[8px]">▶</span>
+                </div>
               </div>
             </div>
-
-            {/* Center graphical area */}
-            <div className="flex-1 relative flex flex-col items-center justify-center p-3 overflow-hidden bg-[#0A0615]">
-              {/* Image from user's upload or fallback html */}
-              <div className="absolute inset-0 z-0 bg-[#0F172A] flex flex-col items-center justify-center pt-2">
-                 <h4 className="text-[12px] font-black text-gray-500 uppercase tracking-widest opacity-60">AREXA</h4>
-                 <div className="relative mt-2 flex items-center justify-center w-[85px] h-[85px]">
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#334155] to-[#0F172A] rounded-full border-[4px] border-[#475569] shadow-[0_0_15px_rgba(0,0,0,0.8)]"></div>
-                    <span className="text-white text-[45px] font-bold drop-shadow-md z-10 mb-1 relative">?</span>
-                 </div>
-                 <div className="mt-1 text-center flex flex-col items-center">
-                    <span className="text-[8px] font-bold text-gray-400 tracking-[0.2em] mb-1">ESTD 2026</span>
-                    <span className="text-[11px] font-black text-white mt-1">A New Way to Win.</span>
-                 </div>
-              </div>
-            </div>
-
-            {/* Bottom Play action pill */}
-            <div className="absolute bottom-2 right-2 z-10">
-              <div className="bg-white text-black px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1 shadow-lg pointer-events-none">
-                <span>PLAY</span>
-                <span className="text-[8px]">▶</span>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
-
-      {/* DB GAMES SECTION */}
-      {games && games.length > 0 && (
-        <div className="flex flex-col gap-1.5 mt-2">
-          <div className="flex items-center gap-1.5 px-0.5">
-            <h2 className="text-white font-display font-black text-sm tracking-wide uppercase flex items-center gap-1">
-              GAMES
-            </h2>
-          </div>
-          <div className="grid grid-cols-2 gap-3.5 px-0.5">
-            {games.map(game => (
-              <div 
-                key={game.id}
-                onClick={() => navigate(`/tournaments?game=${encodeURIComponent(game.title)}`)}
-                className="rounded-[18px] overflow-hidden bg-gradient-to-br from-[#120B24] to-[#1D0C3A] border border-white/5 shadow-2xl flex flex-col relative aspect-[4/5] cursor-pointer group active:scale-[0.98] transition-all"
-              >
-                <div className="flex-1 relative flex flex-col items-center justify-center overflow-hidden bg-[#0A0615]">
-                  {game.image ? (
-                    <img src={game.image} alt={game.title} className="w-full h-full object-cover absolute inset-0 z-0 opacity-80 group-hover:opacity-100 transition-opacity" />
-                  ) : (
-                    <div className="absolute inset-0 z-0 bg-[#0F172A] flex flex-col items-center justify-center pt-2" />
-                  )}
-                  <h4 className="absolute bottom-2 left-2 right-2 text-center text-[14px] font-black text-white px-2 py-1 bg-black/60 rounded uppercase tracking-widest z-10 hidden">{game.title}</h4>
-                </div>
-                {/* Bottom title pill */}
-                <div className="absolute bottom-2 left-2 z-10 w-[calc(100%-16px)]">
-                  <div className="bg-white/90 backdrop-blur-md text-black px-2 py-1 rounded truncate text-[11px] text-center font-black shadow-lg pointer-events-none uppercase">
-                    {game.title}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* 4. MY CONTESTS SECTION */}
       <div className="flex flex-col gap-1.5 mt-2">
         <div className="flex items-center gap-1.5 px-0.5">
-          <h2 className="text-[#EF4444] font-display font-black text-[13px] tracking-widest uppercase flex items-center gap-1.5">
+          <h2 className="text-[#EF4444] font-display font-black text-[13px] tracking-widest uppercase flex items-center gap-1.5 font-sans">
             MY CONTESTS
             <div className="w-[14px] h-[14px] rounded-full bg-[#EF4444] flex items-center justify-center text-[9px] text-white font-bold ml-0.5 shadow-sm">✔</div>
           </h2>

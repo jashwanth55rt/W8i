@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, getDocs, collection, query, where, updateDoc, increment, addDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -42,26 +42,99 @@ export default function Register() {
     try {
       setLoading(true);
       setError('');
+
+      let referrerId: string | null = null;
+      let referrerUsername = '';
+      let referrerEmail = '';
+      
+      const enteredCodeRaw = formData.freeFireId.trim();
+      if (enteredCodeRaw) {
+        const enteredCodeClean = enteredCodeRaw.toUpperCase().replace('NG-', '');
+        
+        // Match standard query
+        const usersRef = collection(db, 'users');
+        const q1 = query(usersRef, where('referralCode', '==', enteredCodeRaw.toUpperCase()));
+        const snap1 = await getDocs(q1);
+        let referrerDoc = snap1.docs[0];
+
+        if (!referrerDoc) {
+          const q2 = query(usersRef, where('referralCode', '==', enteredCodeClean));
+          const snap2 = await getDocs(q2);
+          referrerDoc = snap2.docs[0];
+        }
+
+        if (!referrerDoc) {
+          // Fallback scan
+          const allUsersSnap = await getDocs(usersRef);
+          referrerDoc = allUsersSnap.docs.find(d => d.id.substring(0, 6).toUpperCase() === enteredCodeClean);
+        }
+
+        if (referrerDoc) {
+          referrerId = referrerDoc.id;
+          referrerUsername = referrerDoc.data().username || 'Another Player';
+          referrerEmail = referrerDoc.data().email || '';
+        } else {
+          return setError('Invalid referral code. Please check the code or clear it to register.');
+        }
+      }
       
       const { user } = await createUserWithEmailAndPassword(auth, registerEmail, formData.password);
       
       const userRef = doc(db, 'users', user.uid);
+      const ownReferralCode = `NG-${user.uid.substring(0, 6).toUpperCase()}`;
 
-      // Create new user profile
+      // Create new user profile with bonus if referred
+      const signupBonus = referrerId ? 5 : 0;
+
       await setDoc(userRef, {
         userId: user.uid,
         displayName: formData.firstName + ' ' + formData.lastName,
         username: formData.username,
         email: registerEmail,
         phoneNumber: formData.phoneCode + formData.phoneNumber,
-        referralCode: formData.freeFireId,
+        referralCode: ownReferralCode,
+        referredBy: referrerId || '',
+        referredByCode: enteredCodeRaw || '',
         walletBalance: 0,
-        bonusBalance: 0,
+        bonusBalance: signupBonus,
         totalEarnings: 0,
         role: 'user',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+
+      // If referred, credit both users
+      if (referrerId) {
+        // Credit referrer +10 coins
+        await updateDoc(doc(db, 'users', referrerId), {
+          bonusBalance: increment(10),
+          totalEarnings: increment(10)
+        });
+
+        // Add referrer transaction history
+        await addDoc(collection(db, 'wallet_transactions'), {
+          userId: referrerId,
+          userEmail: referrerEmail,
+          username: referrerUsername,
+          amount: 10,
+          type: 'referral_bonus',
+          status: 'completed',
+          details: { message: `Referral bonus for inviting ${formData.username}` },
+          createdAt: serverTimestamp()
+        });
+
+        // Add new user welcome transaction history
+        await addDoc(collection(db, 'wallet_transactions'), {
+          userId: user.uid,
+          userEmail: registerEmail,
+          username: formData.username,
+          amount: 5,
+          type: 'signup_bonus',
+          status: 'completed',
+          details: { message: `Welcome referral bonus from using code ${enteredCodeRaw}` },
+          createdAt: serverTimestamp()
+        });
+      }
 
       navigate('/');
     } catch (err: any) {
@@ -171,7 +244,6 @@ export default function Register() {
               <input
                 type="text"
                 name="freeFireId"
-                required
                 value={formData.freeFireId}
                 onChange={handleChange}
                 placeholder="Referral Code (Optional)"

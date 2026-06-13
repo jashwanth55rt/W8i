@@ -26,10 +26,8 @@ service cloud.firestore {
     }
 
     match /admins/{adminId} {
-      allow read: if isSignedIn(); // Users need to know who is admin, or we just restrict.
-      // Setup phase: Allow the first admin to be created if no admins exist, but usually we set admins manually.
-      // Realistically, nobody can create admins directly.
-      allow create: if false; 
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
     match /users/{userId} {
@@ -142,6 +140,21 @@ service cloud.firestore {
 
     match /expenses/{expenseId} {
       allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /app_content/{contentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /app_settings/{settingId} {
+      allow read: if true;
       allow write: if isAdmin();
     }
   }

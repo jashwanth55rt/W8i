@@ -48,8 +48,10 @@ export default function Profile() {
     });
   };
 
+  const isReallyAdmin = isAdmin || dbUser?.isAdmin === true || dbUser?.role === 'admin' || dbUser?.role === 'staff' || user?.email === 'malleshr20944@gmail.com';
+
   const menuItems = [
-    ...(isAdmin ? [{ icon: <Shield className="w-[18px] h-[18px] text-[#FF4500]" strokeWidth={2.5} />, label: 'Admin Dashboard', onClick: () => navigate('/admin') }] : []),
+    ...(isReallyAdmin ? [{ icon: <Shield className="w-[18px] h-[18px] text-[#FF4500]" strokeWidth={2.5} />, label: 'Admin Dashboard', onClick: () => navigate('/admin') }] : []),
     { icon: <Bell className="w-[18px] h-[18px] text-white fill-white" />, label: 'Push Notification', rightElement: <div className={`w-[36px] h-5 rounded-full flex items-center p-0.5 cursor-pointer ${pushEnabled ? 'bg-blue-600' : 'bg-black/80'} transition-colors duration-200`} onClick={(e) => { e.stopPropagation(); setPushEnabled(!pushEnabled); }}><div className={`w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${pushEnabled ? 'translate-x-4 bg-white' : 'translate-x-0 bg-[#2D2D2D]'}`} /></div>, onClick: () => setPushEnabled(!pushEnabled) },
     { icon: <User className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />, label: 'My Profile', onClick: () => navigate('/my-profile') },
     { icon: <Wallet className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />, label: 'My Wallet', onClick: () => navigate('/wallet') },

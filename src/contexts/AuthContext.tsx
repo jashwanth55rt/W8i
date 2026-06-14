@@ -31,26 +31,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (firebaseUser) {
+        // Immediate check for owner email to prevent any delay
+        if (firebaseUser.email === 'malleshr20944@gmail.com') {
+          setIsAdmin(true);
+        }
+
         // Real-time synchronization of current user document
-        unsubUserDoc = onSnapshot(doc(db, 'users', firebaseUser.uid), (userDoc) => {
+        unsubUserDoc = onSnapshot(doc(db, 'users', firebaseUser.uid), async (userDoc) => {
+          let userIsAdmin = firebaseUser.email === 'malleshr20944@gmail.com';
+          
           if (userDoc.exists()) {
-            setDbUser({ id: userDoc.id, ...userDoc.data() });
+            const data = userDoc.data();
+            setDbUser({ id: userDoc.id, ...data });
+            if (data?.isAdmin === true || data?.role === 'admin' || data?.role === 'staff') {
+              userIsAdmin = true;
+            }
           } else {
             setDbUser(null);
           }
+
+          try {
+            // Fetch admin doc to check role
+            const adminDoc = await getDoc(doc(db, 'admins', firebaseUser.uid));
+            if (adminDoc.exists()) {
+              userIsAdmin = true;
+            }
+          } catch (error) {
+            console.error("Skipping admins collection check due to permission limit:", error);
+          }
+
+          setIsAdmin(userIsAdmin);
           setLoading(false);
         }, (error) => {
           console.error("Error listening to user document:", error);
           setLoading(false);
         });
-
-        // Fetch admin doc to check role
-        const adminDoc = await getDoc(doc(db, 'admins', firebaseUser.uid));
-        if (adminDoc.exists() || firebaseUser.email === 'malleshr20944@gmail.com') {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
-        }
       } else {
         setDbUser(null);
         setIsAdmin(false);

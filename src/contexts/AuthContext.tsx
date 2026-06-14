@@ -22,8 +22,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let unsubUserDoc: (() => void) | null = null;
 
     const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-
       // Unsubscribe from any previous user document snapshot listener
       if (unsubUserDoc) {
         unsubUserDoc();
@@ -31,27 +29,48 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (firebaseUser) {
-        // Real-time synchronization of current user document
-        unsubUserDoc = onSnapshot(doc(db, 'users', firebaseUser.uid), (userDoc) => {
+        setUser(firebaseUser);
+        
+        try {
+          // Fetch admin role and initial user profile document in parallel
+          const adminDocPromise = getDoc(doc(db, 'admins', firebaseUser.uid));
+          const userDocPromise = getDoc(doc(db, 'users', firebaseUser.uid));
+          
+          const [adminDoc, userDoc] = await Promise.all([adminDocPromise, userDocPromise]);
+          
+          // Determine if admin
+          const adminExists = adminDoc.exists() || firebaseUser.email === 'malleshr20944@gmail.com';
+          setIsAdmin(adminExists);
+          
+          // Set initial user data
           if (userDoc.exists()) {
             setDbUser({ id: userDoc.id, ...userDoc.data() });
           } else {
             setDbUser(null);
           }
+          
+          // Done loading initial security & identity state!
           setLoading(false);
-        }, (error) => {
-          console.error("Error listening to user document:", error);
+          
+          // Set up real-time listener to keep user profile in sync in the background
+          unsubUserDoc = onSnapshot(doc(db, 'users', firebaseUser.uid), (userSnap) => {
+            if (userSnap.exists()) {
+              setDbUser({ id: userSnap.id, ...userSnap.data() });
+            } else {
+              setDbUser(null);
+            }
+          }, (error) => {
+            console.error("Error listening to user document in background:", error);
+          });
+          
+        } catch (error) {
+          console.error("Error during auth initial data fetch:", error);
+          // Fallback check to avoid locking out the owner email
+          setIsAdmin(firebaseUser.email === 'malleshr20944@gmail.com');
           setLoading(false);
-        });
-
-        // Fetch admin doc to check role
-        const adminDoc = await getDoc(doc(db, 'admins', firebaseUser.uid));
-        if (adminDoc.exists() || firebaseUser.email === 'malleshr20944@gmail.com') {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
         }
       } else {
+        setUser(null);
         setDbUser(null);
         setIsAdmin(false);
         setLoading(false);

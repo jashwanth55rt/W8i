@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from './lib/firebase';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
@@ -24,6 +26,7 @@ import MyRewards from './pages/MyRewards';
 import AddCoins from './pages/AddCoins';
 import WithdrawCoins from './pages/WithdrawCoins';
 import ExclusiveGames from './pages/ExclusiveGames';
+import Maintenance from './pages/Maintenance';
 
 const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode, requireAdmin?: boolean }) => {
   const { user, isAdmin, loading } = useAuth();
@@ -44,6 +47,44 @@ const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.Re
 };
 
 function AppRoutes() {
+  const { user, isAdmin, loading: authLoading } = useAuth();
+  const [maintenanceMode, setMaintenanceMode] = React.useState<boolean>(false);
+  const [maintenanceLoading, setMaintenanceLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'app_settings', 'general'), (snap) => {
+      if (snap.exists()) {
+        setMaintenanceMode(snap.data().maintenanceMode || false);
+      } else {
+        setMaintenanceMode(false);
+      }
+      setMaintenanceLoading(false);
+    }, (err) => {
+      console.error('Failed to listen to maintenance settings:', err);
+      setMaintenanceMode(false);
+      setMaintenanceLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  if (authLoading || maintenanceLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#0B0B0F]">
+        <div className="w-8 h-8 border-4 border-[#5ac9b7] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (maintenanceMode && !isAdmin) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Maintenance />} />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

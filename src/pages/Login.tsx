@@ -27,8 +27,14 @@ export default function Login() {
         return;
       }
 
-      await signInWithEmailAndPassword(auth, loginEmail, password);
-      navigate('/');
+      const userCred = await signInWithEmailAndPassword(auth, loginEmail, password);
+      const user = userCred.user;
+      const adminSnap = await getDoc(doc(db, 'admins', user.uid));
+      if (adminSnap.exists() || user.email === 'malleshr20944@gmail.com') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/invalid-email') {
@@ -72,7 +78,12 @@ export default function Login() {
         });
       }
 
-      navigate('/');
+      const adminSnap = await getDoc(doc(db, 'admins', user.uid));
+      if (adminSnap.exists() || user.email === 'malleshr20944@gmail.com') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to sign in with Google');

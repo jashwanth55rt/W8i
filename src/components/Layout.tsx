@@ -1,8 +1,11 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { Gamepad2, User as UserIcon, Globe, Headphones, Plus, Wallet as WalletIcon, Settings, Percent, Home as HomeIcon, Bell } from "lucide-react";
+import { Gamepad2, User as UserIcon, Globe, Headphones, Plus, Wallet as WalletIcon, Settings, Percent, Home as HomeIcon, Bell, ShieldAlert } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { cn } from "../lib/utils";
 import { toast } from 'react-hot-toast';
+import { useEffect, useState } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 // Custom Leaderboard SVG Icon matching the screenshot (3 bars with a star on the tallest middle-right bar)
 const LeaderboardIcon = ({ className, isActive }: { className?: string; isActive?: boolean }) => (
@@ -30,7 +33,17 @@ const LeaderboardIcon = ({ className, isActive }: { className?: string; isActive
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const { dbUser, user } = useAuth();
+  const { dbUser, user, isAdmin } = useAuth();
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'app_settings', 'general'), (snap) => {
+      if (snap.exists()) {
+        setMaintenanceMode(snap.data().maintenanceMode || false);
+      }
+    }, (err) => console.error(err));
+    return () => unsub();
+  }, []);
 
   const showComingSoon = () => {
     toast('Support & Global Features loaded!', {
@@ -51,6 +64,15 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen w-full flex-col bg-[#0A0515] overflow-hidden font-sans">
+      {maintenanceMode && isAdmin && (
+        <Link 
+          to="/admin" 
+          className="bg-red-600 hover:bg-red-700 text-white py-2.5 px-4 text-center font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 z-[9999] relative shrink-0 border-b border-red-500/30 shadow-md"
+        >
+          <ShieldAlert className="w-4 h-4 text-white animate-pulse" />
+          Maintenance Mode Active — Go to Admin Dashboard
+        </Link>
+      )}
       <main className="flex-1 overflow-y-auto pb-[76px]">
         {/* Header matching the reference UI */}
         {!shouldHideHeader && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { format } from 'date-fns';
 import ImageUploader from '../components/ImageUploader';
@@ -933,24 +933,19 @@ function AdminDeposits() {
        try {
          await updateDoc(doc(db, 'deposit_requests', id), { status });
          if (status === 'completed' || status === 'approved') {
-            import('firebase/firestore').then(async ({ getDoc, doc, updateDoc }) => {
-               const userRef = doc(db, 'users', userId);
-               const userSnap = await getDoc(userRef);
-               if (userSnap.exists()) {
-                 await updateDoc(userRef, {
-                   totalBalance: (userSnap.data().totalBalance || 0) + amount,
-                   depositBalance: (userSnap.data().depositBalance || 0) + amount,
-                   walletBalance: (userSnap.data().walletBalance || 0) + amount // keep for legacy fallback
-                 });
-               }
-            }).catch(e => {
-               console.error(e);
-               alert('Failed to update user balance (Missing Permissions)');
-            });
+           const userRef = doc(db, 'users', userId);
+           const userSnap = await getDoc(userRef);
+           if (userSnap.exists()) {
+             await updateDoc(userRef, {
+               totalBalance: (userSnap.data().totalBalance || 0) + amount,
+               depositBalance: (userSnap.data().depositBalance || 0) + amount,
+               walletBalance: (userSnap.data().walletBalance || 0) + amount // keep for legacy fallback
+             });
+           }
          }
        } catch (error) {
          console.error(error);
-         alert('Failed to update deposit (Missing Permissions)');
+         toast.error('Failed to update deposit / user balance (Missing Permissions)');
        }
     }
   };
@@ -997,24 +992,19 @@ function AdminWithdrawals() {
        try {
          await updateDoc(doc(db, 'wallet_transactions', id), { status });
          if (status === 'completed' || status === 'approved') {
-            import('firebase/firestore').then(async ({ getDoc, doc, updateDoc }) => {
-               const userRef = doc(db, 'users', userId);
-               const userSnap = await getDoc(userRef);
-               if (userSnap.exists()) {
-                 await updateDoc(userRef, {
-                   totalBalance: Math.max(0, (userSnap.data().totalBalance || 0) - amount),
-                   winningBalance: Math.max(0, (userSnap.data().winningBalance || 0) - amount),
-                   walletBalance: Math.max(0, (userSnap.data().walletBalance || 0) - amount) // legacy fallback
-                 });
-               }
-            }).catch(e => {
-               console.error(e);
-               alert('Failed to update user balance (Missing Permissions)');
-            });
+           const userRef = doc(db, 'users', userId);
+           const userSnap = await getDoc(userRef);
+           if (userSnap.exists()) {
+             await updateDoc(userRef, {
+               totalBalance: Math.max(0, (userSnap.data().totalBalance || 0) - amount),
+               winningBalance: Math.max(0, (userSnap.data().winningBalance || 0) - amount),
+               walletBalance: Math.max(0, (userSnap.data().walletBalance || 0) - amount) // legacy fallback
+             });
+           }
          }
        } catch (error) {
          console.error(error);
-         alert('Failed to update withdrawal (Missing Permissions)');
+         toast.error('Failed to update withdrawal / user balance (Missing Permissions)');
        }
     }
   };
@@ -1392,7 +1382,6 @@ function AdminContentEditor({ docId, title }: { docId: string, title: string }) 
     setSaving(true);
     try {
       // Need to use setDoc with merge: true in case it doesn't exist
-      const { setDoc } = await import('firebase/firestore');
       await setDoc(doc(db, 'app_content', docId), {
         text: content,
         updatedAt: serverTimestamp()
@@ -1646,7 +1635,6 @@ function AdminAppUpdate() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { setDoc } = await import('firebase/firestore');
       await setDoc(doc(db, 'app_settings', 'general'), {
         latestVersion: version,
         updateLink: link,

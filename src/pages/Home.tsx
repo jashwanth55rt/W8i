@@ -16,7 +16,8 @@ import {
   Trophy,
   Gamepad2,
   PlayCircle,
-  Crosshair
+  Crosshair,
+  Youtube
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { toast } from 'react-hot-toast';
@@ -28,6 +29,7 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [activeGameMode, setActiveGameMode] = useState<string>('all');
+  const [announcement, setAnnouncement] = useState('FREE COINS KYA LIYA MESSAGE KARO — JOIN NOW FOR FREE FIRE TOURNAMENTS — POOL PRIZE ₹600');
 
   // Fetch active game mode config
   useEffect(() => {
@@ -35,6 +37,20 @@ export default function Home() {
       if (snap.exists()) {
         const mode = snap.data().activeOption || 'all';
         setActiveGameMode(mode);
+      }
+    }, err => console.error(err));
+    return () => unsub();
+  }, []);
+
+  // Fetch live announcement content
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'app_content', 'announcement'), (snap) => {
+      if (snap.exists() && snap.data().text) {
+        // Strip html tags if admin added them, so it displays nicely in the marquee ribbon
+        const plainText = snap.data().text.replace(/<[^>]*>/g, '').trim();
+        if (plainText) {
+          setAnnouncement(plainText);
+        }
       }
     }, err => console.error(err));
     return () => unsub();
@@ -101,7 +117,7 @@ export default function Home() {
 
   const openWhatsAppChannel = () => {
     toast.success("Opening official WhatsApp Channel...");
-    window.open("https://wa.me/919137463959", "_blank");
+    window.open("https://wa.me/qr/HVVVHOUFP6MZO1", "_blank");
   };
 
   const handlePlayAction = (gameName: string) => {
@@ -120,7 +136,7 @@ export default function Home() {
         {/* Animated Infinite Marquee Container */}
         <div className="flex-1 overflow-hidden relative select-none">
           <div className="whitespace-nowrap inline-block animate-marquee select-none pl-[40%] font-display uppercase tracking-wider text-white">
-            FREE COINS KYA LIYA MESSAGE KARO 9137463959 — JOIN NOW FOR FREE FIRE TOURNAMENTS — POOL PRIZE ₹600
+            {announcement}
           </div>
         </div>
 
@@ -461,11 +477,14 @@ export default function Home() {
             <Instagram className="w-5 h-5 text-[#E1306C]" />
           </div>
         </a>
-        <a href="https://telegram.org" target="_blank" rel="noreferrer" className="w-[40px] h-[40px] bg-[#229ED9] hover:bg-[#208ebe] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+        <a href="https://t.me/Infinitycodesfree" target="_blank" rel="noreferrer" className="w-[40px] h-[40px] bg-[#229ED9] hover:bg-[#208ebe] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
           <Send className="w-5 h-5 text-white ml-[-2px] mt-[1px]" />
         </a>
-        <a href="https://wa.me/919137463959" target="_blank" rel="noreferrer" className="w-[40px] h-[40px] bg-[#25D366] hover:bg-[#20ba59] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+        <a href="https://wa.me/qr/HVVVHOUFP6MZO1" target="_blank" rel="noreferrer" className="w-[40px] h-[40px] bg-[#25D366] hover:bg-[#20ba59] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
           <MessageCircle className="w-[24px] h-[24px] text-white fill-white" />
+        </a>
+        <a href="https://youtu.be/Rz93geLvlKE?si=3KX-ECGqYLkOZdaT" target="_blank" rel="noreferrer" className="w-[40px] h-[40px] bg-[#FF0000] hover:bg-[#E50000] rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+          <Youtube className="w-5 h-5 text-white" />
         </a>
       </div>
 
@@ -507,7 +526,7 @@ export default function Home() {
 
               {/* Whatsapp */}
               <a 
-                href="https://wa.me/919137463959" 
+                href="https://wa.me/qr/HVVVHOUFP6MZO1" 
                 target="_blank" 
                 rel="noreferrer"
                 className="flex items-center gap-3.5 bg-zinc-900 hover:bg-zinc-800 p-3 rounded-2xl border border-white/5 transition-colors"
@@ -518,22 +537,41 @@ export default function Home() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[12.5px] font-black text-white">Direct WhatsApp</span>
-                  <span className="text-[10px] text-zinc-500">+91 9137463959</span>
+                  <span className="text-[10px] text-zinc-500">Contact / Scan QR</span>
                 </div>
               </a>
 
-              {/* Call support */}
+              {/* Telegram */}
               <a 
-                href="tel:+919137463959" 
+                href="https://t.me/Infinitycodesfree" 
+                target="_blank" 
+                rel="noreferrer"
                 className="flex items-center gap-3.5 bg-zinc-900 hover:bg-zinc-800 p-3 rounded-2xl border border-white/5 transition-colors"
                 onClick={() => setShowSupportModal(false)}
               >
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-lg text-white">
-                  📞
+                <div className="w-10 h-10 bg-[#229ED9] rounded-xl flex items-center justify-center font-bold text-lg text-white">
+                  ✈️
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[12.5px] font-black text-white">Call Helpline Desk</span>
-                  <span className="text-[10px] text-zinc-500">24/7 Active Voice Line</span>
+                  <span className="text-[12.5px] font-black text-white">Official Telegram</span>
+                  <span className="text-[10px] text-zinc-500">@Infinitycodesfree</span>
+                </div>
+              </a>
+
+              {/* YouTube */}
+              <a 
+                href="https://youtu.be/Rz93geLvlKE?si=3KX-ECGqYLkOZdaT" 
+                target="_blank" 
+                rel="noreferrer"
+                className="flex items-center gap-3.5 bg-zinc-900 hover:bg-zinc-800 p-3 rounded-2xl border border-white/5 transition-colors"
+                onClick={() => setShowSupportModal(false)}
+              >
+                <div className="w-10 h-10 bg-[#FF0000] rounded-xl flex items-center justify-center font-bold text-lg text-white">
+                  📺
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[12.5px] font-black text-white">YouTube Tutorials</span>
+                  <span className="text-[10px] text-zinc-500">Watch & Learn Lobbies</span>
                 </div>
               </a>
             </div>

@@ -59,12 +59,17 @@ export default function Layout() {
             <div className="flex items-center gap-2">
               <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-[#1E40AF] to-[#0A0515] flex items-center justify-center overflow-hidden border-[2px] border-white/90 shadow-lg relative">
                 <img 
-                  src={`https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${dbUser?.username || user?.displayName || user?.email?.split('@')[0] || 'Reshma454145'}&backgroundColor=0747E8`} 
+                  src={dbUser?.photoURL || user?.photoURL || `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${dbUser?.username || user?.displayName || user?.email?.split('@')[0] || 'Reshma454145'}&backgroundColor=0747E8`} 
                   alt="avatar" 
-                  className="w-[85%] h-[85%] object-cover" 
+                  className={cn("object-cover", (dbUser?.photoURL || user?.photoURL) ? "w-full h-full" : "w-[85%] h-[85%]")} 
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${dbUser?.username || user?.displayName || user?.email?.split('@')[0] || 'Reshma454145'}&backgroundColor=0747E8`;
+                  }}
                 />
               </div>
-              <Headphones onClick={showComingSoon} className="w-[20px] h-[20px] text-white cursor-pointer" strokeWidth={2} />
+              <Headphones onClick={() => window.open("https://wa.me/qr/HVVVHOUFP6MZO1", "_blank")} className="w-[20px] h-[20px] text-white cursor-pointer" strokeWidth={2} />
             </div>
 
             {/* Center: Welcome Back & Username */}

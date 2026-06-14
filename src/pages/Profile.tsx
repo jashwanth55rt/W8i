@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 
 export default function Profile() {
-  const { dbUser, isAdmin } = useAuth();
+  const { dbUser, user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [pushEnabled, setPushEnabled] = useState(false);
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
@@ -63,7 +63,7 @@ export default function Profile() {
     { icon: <BarChart3 className="w-[18px] h-[18px] text-white" strokeWidth={3} />, label: 'Leaderboard', onClick: () => navigate('/leaderboard') },
     { icon: <HelpCircle className="w-[18px] h-[18px] text-white fill-white text-[#1A0B2E]" />, label: 'App Tutorial', onClick: () => navigate('/tutorial') },
     { icon: <Info className="w-[18px] h-[18px] text-white fill-white text-[#1A0B2E]" />, label: 'About us', onClick: () => navigate('/about') },
-    { icon: <Headphones className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />, label: 'Customer Support', onClick: showComingSoon },
+    { icon: <Headphones className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />, label: 'Customer Support', onClick: () => window.open("https://wa.me/qr/HVVVHOUFP6MZO1", "_blank") },
     { icon: <Share2 className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />, label: 'Share App', onClick: () => {
         if (navigator.share) {
           navigator.share({ title: 'NG ESPORTS', url: window.location.origin });
@@ -84,9 +84,14 @@ export default function Profile() {
       <div className="flex flex-col items-center mb-6">
         <div className="w-[100px] h-[100px] rounded-full border-[3px] border-white overflow-hidden flex items-center justify-center mb-3 shadow-[0_0_20px_rgba(59,130,246,0.6)]">
            <img 
-             src="https://api.dicebear.com/7.x/adventurer/svg?seed=Felix" 
+             src={dbUser?.photoURL || user?.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${dbUser?.username || user?.uid || 'Felix'}`} 
              alt="Profile" 
              className="w-full h-full object-cover bg-gradient-to-br from-blue-900 to-black rounded-full"
+             referrerPolicy="no-referrer"
+             onError={(e) => {
+               e.currentTarget.onerror = null;
+               e.currentTarget.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${dbUser?.username || user?.uid || 'Felix'}`;
+             }}
            />
         </div>
         <h2 className="text-[20px] font-bold text-white mb-0.5">{dbUser?.username || 'free'}</h2>

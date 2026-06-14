@@ -212,16 +212,17 @@ export default function MyProfile() {
 
       <div className="flex flex-col px-4 pt-6 max-w-[500px] mx-auto w-full">
         <div className="flex items-center justify-center mb-8 relative">
-           <div className="w-[120px] h-[120px] rounded-full border-[3px] border-[#3B82F6] overflow-hidden shadow-[0_0_20px_rgba(59,130,246,0.4)] relative group">
-             {dbUser?.photoURL || user?.photoURL ? (
-               <img src={dbUser?.photoURL || user?.photoURL || ''} alt="Profile" className="w-full h-full object-cover" />
-             ) : (
-               <img 
-                 src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${dbUser?.username || user?.uid || 'user'}`} 
-                 alt="Profile" 
-                 className="w-full h-full object-cover bg-gradient-to-br from-blue-900 to-black"
-               />
-             )}
+           <div className="w-[120px] h-[120px] rounded-full border-[3px] border-[#3B82F6] overflow-hidden shadow-[0_0_20px_rgba(59,130,246,0.4)] relative group bg-[#12182F]">
+             <img 
+               src={dbUser?.photoURL || user?.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${dbUser?.username || user?.uid || 'user'}`} 
+               alt="Profile" 
+               className="w-full h-full object-cover" 
+               referrerPolicy="no-referrer"
+               onError={(e) => {
+                 e.currentTarget.onerror = null;
+                 e.currentTarget.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${dbUser?.username || user?.uid || 'user'}`;
+               }}
+             />
              {isEditing && (
                <div className="absolute inset-x-0 bottom-0 top-0 bg-black/50 flex flex-col items-center justify-center text-white backdrop-blur-sm pointer-events-none">
                  <Camera className="w-8 h-8 mb-1 opacity-80" />
@@ -276,7 +277,7 @@ export default function MyProfile() {
 
       {/* Edit Modal */}
       {isEditing && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4 animate-in fade-in duration-200">
           <div className="bg-[#1C093B] w-full max-w-[500px] sm:rounded-2xl rounded-t-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90vh] animate-in slide-in-from-bottom sm:slide-in-from-bottom-8 duration-300">
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-black/20">
               <h3 className="text-white font-semibold flex items-center gap-2">

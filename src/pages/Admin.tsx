@@ -9,6 +9,7 @@ import {
   Settings, UserCheck, Shield, Menu, X, Trophy, Banknote, ShieldAlert, CheckCircle, Smartphone,
   Activity, CheckCircle2, Award, Trash2, Edit, Plus, MoveUp, MoveDown
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function Admin() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -241,12 +242,13 @@ function AdminUsers() {
 
   const toggleBan = async (id: string, currentlyBanned: boolean) => {
     if (confirm(`Are you sure you want to ${currentlyBanned ? 'unban' : 'ban'} this user?`)) {
-      try {
-        await updateDoc(doc(db, 'users', id), { banned: !currentlyBanned });
-      } catch (error) {
-        console.error(error);
-        alert('Failed to update ban status (Missing Permissions)');
-      }
+       try {
+         await updateDoc(doc(db, 'users', id), { banned: !currentlyBanned });
+         toast.success(`User ${currentlyBanned ? 'unbanned' : 'banned'} successfully`);
+       } catch (error) {
+         console.error(error);
+         toast.error('Failed to update ban status (Missing Permissions)');
+       }
     }
   };
 
@@ -264,10 +266,10 @@ function AdminUsers() {
            depositBalance: !isNaN(newDeposit) ? newDeposit : currentDeposit,
            walletBalance: newBalance // legacy fallback
          });
-         alert("Wallet updated successfully");
+         toast.success("Wallet updated successfully");
        } catch (error) {
          console.error(error);
-         alert('Failed to update wallet (Missing Permissions)');
+         toast.error('Failed to update wallet (Missing Permissions)');
        }
     }
   };
@@ -342,7 +344,7 @@ function AdminAddGame() {
           gameType,
           updatedAt: serverTimestamp()
         });
-        alert('Game updated successfully!');
+        toast.success('Game updated successfully!');
       } else {
         await addDoc(collection(db, 'games'), {
           title,
@@ -350,13 +352,13 @@ function AdminAddGame() {
           gameType,
           createdAt: serverTimestamp()
         });
-        alert('Game added successfully!');
+        toast.success('Game added successfully!');
       }
       
       handleCancelEdit();
     } catch (error) {
       console.error(error);
-      alert(editingId ? 'Failed to update game' : 'Failed to add game');
+      toast.error(editingId ? 'Failed to update game' : 'Failed to add game');
     } finally {
       setLoading(false);
     }
@@ -380,9 +382,10 @@ function AdminAddGame() {
     try {
       const nextType = currentType === 'free_matches' ? 'play_with_ads_coins' : 'free_matches';
       await updateDoc(doc(db, 'games', gameId), { gameType: nextType });
+      toast.success('Game type updated!');
     } catch (error) {
       console.error('Error toggling type:', error);
-      alert('Failed to update game type');
+      toast.error('Failed to update game type');
     }
   };
 
@@ -390,13 +393,13 @@ function AdminAddGame() {
     if (confirm('Delete this game?')) {
       try {
         await deleteDoc(doc(db, 'games', id));
-        alert('Game deleted successfully');
+        toast.success('Game deleted successfully');
         if (editingId === id) {
           handleCancelEdit();
         }
       } catch (error) {
         console.error(error);
-        alert('Failed to delete game.');
+        toast.error('Failed to delete game.');
       }
     }
   };
@@ -1394,10 +1397,10 @@ function AdminContentEditor({ docId, title }: { docId: string, title: string }) 
         text: content,
         updatedAt: serverTimestamp()
       }, { merge: true });
-      alert('Content saved successfully!');
+      toast.success('Content saved successfully!');
     } catch (err) {
       console.error(err);
-      alert('Failed to save content (Missing Permissions?)');
+      toast.error('Failed to save content (Missing Permissions?)');
     } finally {
       setSaving(false);
     }

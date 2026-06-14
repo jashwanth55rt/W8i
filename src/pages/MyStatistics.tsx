@@ -25,7 +25,16 @@ export default function MyStatistics() {
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-blue-500/20 rounded-full blur-2xl pointer-events-none" />
           <div className="flex items-center gap-4 relative z-10">
             <div className="w-16 h-16 rounded-full border-[3px] border-blue-500 overflow-hidden shadow-[0_0_15px_rgba(59,130,246,0.5)]">
-              <img src={dbUser?.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${dbUser?.username || user?.uid}`} alt="Profile" className="w-full h-full object-cover bg-black" />
+              <img 
+                src={dbUser?.photoURL || user?.photoURL || `https://api.dicebear.com/7.x/adventurer/svg?seed=${dbUser?.username || user?.uid || 'user'}`} 
+                alt="Profile" 
+                className="w-full h-full object-cover bg-black"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${dbUser?.username || user?.uid || 'user'}`;
+                }}
+              />
             </div>
             <div className="flex flex-col">
               <span className="text-sm text-blue-400 font-bold tracking-wider uppercase mb-0.5">Player Stats</span>

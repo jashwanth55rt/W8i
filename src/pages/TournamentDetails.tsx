@@ -5,6 +5,7 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Copy, Check, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
 
 export default function TournamentDetails() {
   const { id } = useParams<{ id: string }>();
@@ -78,13 +79,13 @@ export default function TournamentDetails() {
     if (!tournament || !user || !dbUser) return;
     
     if (!inGameName.trim()) {
-      alert('Please enter your In Game Name');
+      toast.error('Please enter your In Game Name');
       setShowNamePopup(true);
       return;
     }
 
     if (currentBalance < tournament.entryFee) {
-      alert('Insufficient balance! Please recharge your wallet.');
+      toast.error('Insufficient balance! Please recharge your wallet.');
       return;
     }
 
@@ -170,7 +171,7 @@ export default function TournamentDetails() {
       setShowConfirmPopup(true);
     } catch (err: any) {
       console.error(err);
-      alert(err.message || 'Failed to join tournament');
+      toast.error(err.message || 'Failed to join tournament');
     } finally {
       setJoining(false);
     }
@@ -195,13 +196,13 @@ export default function TournamentDetails() {
           updatedAt: serverTimestamp()
         });
       });
-      alert('Result uploaded successfully! Waiting for admin verification.');
+      toast.success('Result uploaded successfully! Waiting for admin verification.');
       setShowUploadModal(false);
       // local update
       setParticipantData((prev: any) => ({ ...prev, kills: Number(uploadData.kills), placement: Number(uploadData.placement), screenshotUrl: uploadData.screenshotUrl, verified: false }));
     } catch (err: any) {
       console.error(err);
-      alert('Failed to upload result: ' + err.message);
+      toast.error('Failed to upload result: ' + err.message);
     } finally {
       setUploading(false);
     }
@@ -351,7 +352,7 @@ export default function TournamentDetails() {
                       if (inGameName.trim()) {
                         setShowNamePopup(false);
                       } else {
-                        alert('Name cannot be empty');
+                        toast.error('Name cannot be empty');
                       }
                     }}
                     className="flex-1 bg-[#5ac9b7] text-white font-semibold py-2.5 rounded-md hover:bg-[#4bb9a8] transition text-sm"
@@ -574,7 +575,7 @@ export default function TournamentDetails() {
               </button>
             )}
             <button 
-              onClick={() => alert('Players list feature coming soon!')}
+              onClick={() => toast.success('Players list feature coming soon!')}
               className="flex-[0.7] bg-[#2c2f3a] text-white font-bold tracking-wider py-3.5 rounded-md text-center shadow hover:bg-[#3a3d4a] transition active:scale-[0.98]"
             >
               PLAYERS
